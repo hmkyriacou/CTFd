@@ -3,18 +3,33 @@ import os
 
 from flask import session
 
+from CTFd.cache import clear_user_session
 from CTFd.exceptions import UserNotFoundException, UserTokenExpiredException
 from CTFd.models import UserTokens, db
 from CTFd.utils.encoding import hexencode
 from CTFd.utils.security.csrf import generate_nonce
+from CTFd.utils.security.signing import hmac
 
 
 def login_user(user):
     session["id"] = user.id
     session["name"] = user.name
-    session["type"] = user.type
     session["email"] = user.email
     session["nonce"] = generate_nonce()
+    session["hash"] = hmac(user.password)
+
+    # Clear out any currently cached user attributes
+    clear_user_session(user_id=user.id)
+
+
+def update_user(user):
+    session["id"] = user.id
+    session["name"] = user.name
+    session["email"] = user.email
+    session["hash"] = hmac(user.password)
+
+    # Clear out any currently cached user attributes
+    clear_user_session(user_id=user.id)
 
 
 def logout_user():
@@ -27,9 +42,7 @@ def generate_user_token(user, expiration=None):
         value = hexencode(os.urandom(32))
         temp_token = UserTokens.query.filter_by(value=value).first()
 
-    token = UserTokens(
-        user_id=user.id, expiration=expiration, value=hexencode(os.urandom(32))
-    )
+    token = UserTokens(user_id=user.id, expiration=expiration, value=value)
     db.session.add(token)
     db.session.commit()
     return token

@@ -1,6 +1,5 @@
 import datetime
 
-import six
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -142,6 +141,8 @@ class Awards(db.Model):
 
     @hybrid_property
     def account_id(self):
+        from CTFd.utils import get_config
+
         user_mode = get_config("user_mode")
         if user_mode == "teams":
             return self.team_id
@@ -259,6 +260,8 @@ class Users(db.Model):
 
     @hybrid_property
     def account_id(self):
+        from CTFd.utils import get_config
+
         user_mode = get_config("user_mode")
         if user_mode == "teams":
             return self.team_id
@@ -291,6 +294,8 @@ class Users(db.Model):
             return None
 
     def get_solves(self, admin=False):
+        from CTFd.utils import get_config
+
         solves = Solves.query.filter_by(user_id=self.id)
         freeze = get_config("freeze")
         if freeze and admin is False:
@@ -299,6 +304,8 @@ class Users(db.Model):
         return solves.all()
 
     def get_fails(self, admin=False):
+        from CTFd.utils import get_config
+
         fails = Fails.query.filter_by(user_id=self.id)
         freeze = get_config("freeze")
         if freeze and admin is False:
@@ -307,6 +314,8 @@ class Users(db.Model):
         return fails.all()
 
     def get_awards(self, admin=False):
+        from CTFd.utils import get_config
+
         awards = Awards.query.filter_by(user_id=self.id)
         freeze = get_config("freeze")
         if freeze and admin is False:
@@ -314,6 +323,7 @@ class Users(db.Model):
             awards = awards.filter(Awards.date < dt)
         return awards.all()
 
+    @cache.memoize()
     def get_score(self, admin=False):
         score = db.func.sum(Challenges.value).label("score")
         user = (
@@ -346,6 +356,7 @@ class Users(db.Model):
         else:
             return 0
 
+    @cache.memoize()
     def get_place(self, admin=False, numeric=False):
         """
         This method is generally a clone of CTFd.scoreboard.get_standings.
@@ -357,12 +368,13 @@ class Users(db.Model):
 
         standings = get_user_standings(admin=admin)
 
-        try:
-            n = standings.index((self.id,)) + 1
-            if numeric:
-                return n
-            return ordinalize(n)
-        except ValueError:
+        for i, user in enumerate(standings):
+            if user.user_id == self.id:
+                n = i + 1
+                if numeric:
+                    return n
+                return ordinalize(n)
+        else:
             return None
 
 
@@ -383,7 +395,9 @@ class Teams(db.Model):
     password = db.Column(db.String(128))
     secret = db.Column(db.String(128))
 
-    members = db.relationship("Users", backref="team", foreign_keys="Users.team_id")
+    members = db.relationship(
+        "Users", backref="team", foreign_keys="Users.team_id", lazy="joined"
+    )
 
     # Supplementary attributes
     website = db.Column(db.String(128))
@@ -432,6 +446,8 @@ class Teams(db.Model):
             return None
 
     def get_solves(self, admin=False):
+        from CTFd.utils import get_config
+
         member_ids = [member.id for member in self.members]
 
         solves = Solves.query.filter(Solves.user_id.in_(member_ids)).order_by(
@@ -446,6 +462,8 @@ class Teams(db.Model):
         return solves.all()
 
     def get_fails(self, admin=False):
+        from CTFd.utils import get_config
+
         member_ids = [member.id for member in self.members]
 
         fails = Fails.query.filter(Fails.user_id.in_(member_ids)).order_by(
@@ -460,6 +478,8 @@ class Teams(db.Model):
         return fails.all()
 
     def get_awards(self, admin=False):
+        from CTFd.utils import get_config
+
         member_ids = [member.id for member in self.members]
 
         awards = Awards.query.filter(Awards.user_id.in_(member_ids)).order_by(
@@ -473,12 +493,14 @@ class Teams(db.Model):
 
         return awards.all()
 
+    @cache.memoize()
     def get_score(self, admin=False):
         score = 0
         for member in self.members:
             score += member.get_score(admin=admin)
         return score
 
+    @cache.memoize()
     def get_place(self, admin=False, numeric=False):
         """
         This method is generally a clone of CTFd.scoreboard.get_standings.
@@ -490,12 +512,13 @@ class Teams(db.Model):
 
         standings = get_team_standings(admin=admin)
 
-        try:
-            n = standings.index((self.id,)) + 1
-            if numeric:
-                return n
-            return ordinalize(n)
-        except ValueError:
+        for i, team in enumerate(standings):
+            if team.team_id == self.id:
+                n = i + 1
+                if numeric:
+                    return n
+                return ordinalize(n)
+        else:
             return None
 
 
@@ -523,6 +546,8 @@ class Submissions(db.Model):
 
     @hybrid_property
     def account_id(self):
+        from CTFd.utils import get_config
+
         user_mode = get_config("user_mode")
         if user_mode == "teams":
             return self.team_id
@@ -531,6 +556,8 @@ class Submissions(db.Model):
 
     @hybrid_property
     def account(self):
+        from CTFd.utils import get_config
+
         user_mode = get_config("user_mode")
         if user_mode == "teams":
             return self.team
@@ -600,6 +627,8 @@ class Unlocks(db.Model):
 
     @hybrid_property
     def account_id(self):
+        from CTFd.utils import get_config
+
         user_mode = get_config("user_mode")
         if user_mode == "teams":
             return self.team_id
@@ -668,22 +697,3 @@ class Tokens(db.Model):
 
 class UserTokens(Tokens):
     __mapper_args__ = {"polymorphic_identity": "user"}
-
-
-@cache.memoize()
-def get_config(key):
-    """
-    This should be a direct clone of its implementation in utils. It is used to avoid a circular import.
-    """
-    config = Configs.query.filter_by(key=key).first()
-    if config and config.value:
-        value = config.value
-        if value and value.isdigit():
-            return int(value)
-        elif value and isinstance(value, six.string_types):
-            if value.lower() == "true":
-                return True
-            elif value.lower() == "false":
-                return False
-            else:
-                return value

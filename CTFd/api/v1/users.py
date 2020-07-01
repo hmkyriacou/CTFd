@@ -1,7 +1,7 @@
-from flask import abort, request, session
-from flask_restplus import Namespace, Resource
+from flask import abort, request
+from flask_restx import Namespace, Resource
 
-from CTFd.cache import clear_standings
+from CTFd.cache import clear_standings, clear_user_session
 from CTFd.models import (
     Awards,
     Notifications,
@@ -22,7 +22,8 @@ from CTFd.utils.decorators.visibility import (
     check_score_visibility,
 )
 from CTFd.utils.email import sendmail, user_created_notification
-from CTFd.utils.user import get_current_user, is_admin
+from CTFd.utils.security.auth import update_user
+from CTFd.utils.user import get_current_user, get_current_user_type, is_admin
 
 users_namespace = Namespace("users", description="Endpoint to retrieve Users")
 
@@ -31,7 +32,11 @@ users_namespace = Namespace("users", description="Endpoint to retrieve Users")
 class UserList(Resource):
     @check_account_visibility
     def get(self):
-        users = Users.query.filter_by(banned=False, hidden=False)
+        if is_admin() and request.args.get("view") == "admin":
+            users = Users.query.filter_by()
+        else:
+            users = Users.query.filter_by(banned=False, hidden=False)
+
         response = UserSchema(view="user", many=True).dump(users)
 
         if response.errors:
@@ -80,7 +85,8 @@ class UserPublic(Resource):
         if (user.banned or user.hidden) and is_admin() is False:
             abort(404)
 
-        response = UserSchema(view=session.get("type", "user")).dump(user)
+        user_type = get_current_user_type(fallback="user")
+        response = UserSchema(view=user_type).dump(user)
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
@@ -106,6 +112,7 @@ class UserPublic(Resource):
 
         db.session.close()
 
+        clear_user_session(user_id=user_id)
         clear_standings()
 
         return {"success": True, "data": response}
@@ -122,6 +129,7 @@ class UserPublic(Resource):
         db.session.commit()
         db.session.close()
 
+        clear_user_session(user_id=user_id)
         clear_standings()
 
         return {"success": True}
@@ -147,6 +155,9 @@ class UserPrivate(Resource):
             return {"success": False, "errors": response.errors}, 400
 
         db.session.commit()
+
+        # Update user's session for the new session hash
+        update_user(user)
 
         response = schema.dump(response.data)
         db.session.close()

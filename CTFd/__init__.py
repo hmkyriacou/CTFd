@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import weakref
 from distutils.version import StrictVersion
 
 from flask import Flask, Request
@@ -30,7 +31,7 @@ if sys.version_info[0] < 3:
     reload(sys)  # noqa: F821
     sys.setdefaultencoding("utf-8")
 
-__version__ = "2.3.2"
+__version__ = "2.5.0"
 
 
 class CTFdRequest(Request):
@@ -71,10 +72,32 @@ class SandboxedBaseEnvironment(SandboxedEnvironment):
     def __init__(self, app, **options):
         if "loader" not in options:
             options["loader"] = app.create_global_jinja_loader()
-        # Disable cache entirely so that themes can be switched (#662)
-        # If the cache is enabled, switching themes will cause odd rendering errors
-        SandboxedEnvironment.__init__(self, cache_size=0, **options)
+        SandboxedEnvironment.__init__(self, **options)
         self.app = app
+
+    def _load_template(self, name, globals):
+        if self.loader is None:
+            raise TypeError("no loader for this environment specified")
+
+        # Add theme to the LRUCache cache key
+        cache_name = name
+        if name.startswith("admin/") is False:
+            theme = str(utils.get_config("ctf_theme"))
+            cache_name = theme + "/" + name
+
+        # Rest of this code is copied from Jinja
+        # https://github.com/pallets/jinja/blob/master/src/jinja2/environment.py#L802-L815
+        cache_key = (weakref.ref(self.loader), cache_name)
+        if self.cache is not None:
+            template = self.cache.get(cache_key)
+            if template is not None and (
+                not self.auto_reload or template.is_up_to_date
+            ):
+                return template
+        template = self.loader.load(self, name, globals)
+        if self.cache is not None:
+            self.cache[cache_key] = template
+        return template
 
 
 class ThemeLoader(FileSystemLoader):
@@ -156,6 +179,19 @@ def create_app(config="CTFd.config.Config"):
 
         # Alembic sqlite support is lacking so we should just create_all anyway
         if url.drivername.startswith("sqlite"):
+            # Enable foreign keys for SQLite. This must be before the
+            # db.create_all call because tests use the in-memory SQLite
+            # database (each connection, including db creation, is a new db).
+            # https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#foreign-key-support
+            from sqlalchemy.engine import Engine
+            from sqlalchemy import event
+
+            @event.listens_for(Engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
             db.create_all()
             stamp_latest_revision()
         else:
