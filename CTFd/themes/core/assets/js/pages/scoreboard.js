@@ -40,7 +40,7 @@ const updateScores = () => {
         '<th scope="row" class="text-center">',
         i + 1,
         "</th>",
-        '<td><a href="{0}/team/{1}">'.format(
+        '<td><a href="{0}/teams/{1}">'.format(
           CTFd.config.urlRoot,
           teams[i].account_id
         ),
@@ -65,7 +65,7 @@ const createGraph = () => {
     if (teams.length === 0) {
       // Replace spinner
       graph.html(
-        '<div class="text-center"><h3 class="spinner-error">No solves yet</h3></div>'
+        '<h3 class="opacity-50 text-center w-100 justify-content-center align-self-center">No solves yet</h3>'
       );
       return;
     }

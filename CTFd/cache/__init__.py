@@ -26,6 +26,7 @@ def clear_config():
 
 
 def clear_standings():
+    from CTFd.models import Users, Teams
     from CTFd.utils.scores import get_standings, get_team_standings, get_user_standings
     from CTFd.api.v1.scoreboard import ScoreboardDetail, ScoreboardList
     from CTFd.api import api
@@ -33,6 +34,10 @@ def clear_standings():
     cache.delete_memoized(get_standings)
     cache.delete_memoized(get_team_standings)
     cache.delete_memoized(get_user_standings)
+    cache.delete_memoized(Users.get_score)
+    cache.delete_memoized(Users.get_place)
+    cache.delete_memoized(Teams.get_score)
+    cache.delete_memoized(Teams.get_place)
     cache.delete(make_cache_key(path="scoreboard.listing"))
     cache.delete(make_cache_key(path=api.name + "." + ScoreboardList.endpoint))
     cache.delete(make_cache_key(path=api.name + "." + ScoreboardDetail.endpoint))
@@ -44,3 +49,33 @@ def clear_pages():
 
     cache.delete_memoized(get_pages)
     cache.delete_memoized(get_page)
+
+
+def clear_user_recent_ips(user_id):
+    from CTFd.utils.user import get_user_recent_ips
+
+    cache.delete_memoized(get_user_recent_ips, user_id=user_id)
+
+
+def clear_user_session(user_id):
+    from CTFd.utils.user import get_user_attrs
+
+    cache.delete_memoized(get_user_attrs, user_id=user_id)
+
+
+def clear_all_user_sessions():
+    from CTFd.utils.user import get_user_attrs
+
+    cache.delete_memoized(get_user_attrs)
+
+
+def clear_team_session(team_id):
+    from CTFd.utils.user import get_team_attrs
+
+    cache.delete_memoized(get_team_attrs, team_id=team_id)
+
+
+def clear_all_team_sessions():
+    from CTFd.utils.user import get_team_attrs
+
+    cache.delete_memoized(get_team_attrs)

@@ -1,3 +1,157 @@
+2.5.0 / 2020-06-04
+==================
+
+**General**
+* Use a session invalidation strategy inspired by Django. Newly generated user sessions will now include a HMAC of the user's password. When the user's password is changed by someone other than the user the previous HMACs will no longer be valid and the user will be logged out when they next attempt to perform an action.
+* A user and team's place, and score are now cached and invalidated on score changes.
+
+**API**
+* Add `/api/v1/challenges?view=admin` to allow admin users to see all challenges regardless of their visibility state
+* Add `/api/v1/users?view=admin` to allow admin users to see all users regardless of their hidden/banned state
+* Add `/api/v1/teams?view=admin` to allow admin users to see all teams regardless of their hidden/banned state
+* The scoreboard endpoint `/api/v1/scoreboard` is now significantly more performant (20x) due to better response generation
+* The top scoreboard endpoint `/api/v1/scoreboard/top/<count>` is now more performant (3x) due to better response generation
+* The scoreboard endpoint `/api/v1/scoreboard` will no longer show hidden/banned users in a non-hidden team
+
+**Deployment**
+* `docker-compose` now provides a basic nginx configuration and deploys nginx on port 80
+* `Dockerfile` now installs `python3` and `python3-dev` instead of `python` and `python-dev` because Alpine no longer provides those dependencies
+
+**Miscellaneous**
+* The `get_config` and `get_page` config utilities now use SQLAlchemy Core instead of SQLAlchemy ORM for slight speedups
+* The `get_team_standings` and `get_user_standings` functions now return more data (id, oauth_id, name, score for regular users and banned, hidden as well for admins)
+* Update Flask-Migrate to 2.5.3 and regenerate the migration environment. Fixes using `%` signs in database passwords.
+
+
+2.4.3 / 2020-05-24
+==================
+
+**Miscellaneous**
+* Notifications/Events endpoint will now immediately send a ping instead of waiting a few seconds.
+* Upgrade `gunicorn` dependency to `19.10.0`
+* Upgrade `boto3` dependency to `1.13.9`
+* Improve `import_ctf()` reliability by closing all connections before dropping & recreating database
+* Close database session in IP tracking code in failure situations to avoid potential dangling database connections
+* Don't allow backups to be imported if they do not have a `db` folder
+* Change `import_ctf()` process slightly to import built-in tables first and then plugin tables
+* Handle exception where a regex Flag is invalid
+
+**API**
+* File deletion endpoint (`DELETE /api/v1/files/[file_id]`) will now correctly delete the associated file
+
+**Plugins**
+* Add `CTFd.plugins.get_plugin_names()` to get a list of available plugins
+* Add `CTFd.plugins.migrations.current()` to get the current revision of a plugin migration
+* Improve `CTFd.plugins.migrations.upgrade()` to be able to upgrade to a specific plugin migration
+* Run plugin migrations during import process
+
+**Themes**
+* Update jQuery to v3.5.1 to fix mobile hamburger menu
+* Upgrade some dependencies in yarn lockfile
+* Fix invalid team link being generated in `scoreboard.js`
+
+**Admin Panel**
+* Fix sending of user creation notification email
+* Fix button to remove users from teams
+
+
+2.4.2 / 2020-05-08
+==================
+
+**Admin Panel**
+* Fix Challenge Reset in Admin Panel where Dynamic Challenges prevented resetting Challenges
+
+**Plugins**
+* Add the `CTFd.plugins.migrations` module to allow plugins to handle migrations. Plugins should now call `CTFd.plugins.migrations.upgrade` instead of `app.db.create_all` which will allow the plugin to have database migrations.
+* Make Dynamic Challenges have a cascading deletion constraint against their respective Challenge row
+
+**Miscellaneous**
+* Add `app.plugins_dir` object to refer to the directory where plugins are installed
+
+
+2.4.1 / 2020-05-06
+==================
+
+**Admin Panel**
+* Fix issue where admins couldn't update the "Account Creation" email
+* Fix issue where the Submissions page in the Admin Panel could not be paginated correctly
+
+**Miscellaneous**
+* Add `SQLALCHEMY_ENGINE_OPTIONS` to `config.py` with a slightly higher default `max_overflow` setting for `SQLALCHEMY_MAX_OVERFLOW`. This can be overridden with the `SQLALCHEMY_MAX_OVERFLOW` envvar
+* Add `node_modules/` to `.dockerignore`
+
+
+2.4.0 / 2020-05-04
+==================
+
+**General**
+* Cache user and team attributes and use those perform certain page operations intead of going to the database for data
+    * After modifying the user/team attributes you should call the appropriate cache clearing function (clear_user_session/clear_team_session)
+* Cache user IPs for the last hour to avoid hitting the database on every authenticated page view
+    * Update the user IP's last seen value at least every hour or on every non-GET request
+* Replace `flask_restplus` with `flask_restx`
+* Remove `datafreeze`, `normality`, and `banal` dependencies in favor of in-repo solutions to exporting database
+
+**Admin Panel**
+* Add bulk selection and deletion for Users, Teams, Scoreboard, Challenges, Submissions
+* Make some Admin tables sortable by table headers
+* Create a score distribution graph in the statistics page
+* Make instance reset more granular to allow for choosing to reset Accounts, Submissions, Challenges, Pages, and/or Notificatoins
+* Properly update challenge visibility after updating challenge
+* Show total possible points in Statistics page
+* Add searching for Users, Teams, Challenges, Submissions
+* Move User IP addresses into a modal
+* Move Team IP addresses into a modal
+* Show User website in a user page button
+* Show Team website in a team page button
+* Make the Pages editor use proper HTML syntax highlighting
+* Theme header and footer editors now use CodeMirror
+* Make default CodeMirror font-size 12px
+* Stop storing last action via location hash and switch to using sessionStorage
+
+**Themes**
+* Make page selection a select and option instead of having a lot of page links
+* Add the JSEnum class to create constants that can be accessed from webpack. Generate constants with `python manage.py build jsenums`
+* Add the JinjaEnum class to inject constants into the Jinja environment to access from themes
+* Update jQuery to 3.5.0 to resolve potential security issue
+* Add some new CSS utilities (`.min-vh-*` and `.opacity-*`)
+* Change some rows to have a minimum height so they don't render oddly without data
+* Deprecate `.spinner-error` CSS class
+* Deprecate accessing the type variable to check user role. Instead you should use `is_admin()`
+
+**Miscellaneous**
+* Enable foreign key enforcement for SQLite. Only really matters for the debug server.
+* Remove the duplicated `get_config` from `CTFd.models`
+* Fix possible email sending issues in Python 3 by using `EmailMessage`
+* Dont set User type in the user side session. Instead it should be set in the new user attributes
+* Fix flask-profiler and bump dependency to 1.8.1
+* Switch to using the `Faker` library for `populate.py` instead of hardcoded data
+* Add a `yarn lint` command to run eslint on JS files
+* Always insert the current CTFd version at the end of the import process
+* Fix issue where files could not be downloaded on Windows
+
+
+2.3.3 / 2020-04-12
+==================
+
+**General**
+* Re-enable the Jinja LRU Cache for **significant speedups** when returning HTML content
+
+**API**
+* `POST /api/v1/unlocks` will no longer allow duplicate unlocks to happen
+
+**Admin Panel**
+* Makes `Account Visibility` subtext clearer by explaining the `Private` setting in Config Panel
+
+**Themes**
+* Fixes an issue with using a theme with a purely numeric name
+* Fixes issue where the scoreboard graph always said Teams regardless of mode
+
+**Miscellaneous**
+* Bump max log file size to 10 MB and fix log rotation
+* Docker image dependencies (apk & pip) are no longer cached reducing the image size slightly
+
+
 2.3.2 / 2020-03-15
 ==================
 
