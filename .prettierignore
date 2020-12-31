@@ -8,3 +8,4 @@ CTFd/themes/**/vendor/
 *.svg
 *.mp3
 *.webm
+*.md
