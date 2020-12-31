@@ -8,6 +8,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - OAUTH_PROVIDER=ctftime
+      - OAUTH_CALLBACK_ENDPOINT=http://127.0.0.1/redirect
       - UPLOAD_FOLDER=/var/uploads
       - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
       - REDIS_URL=redis://cache:6379
@@ -16,6 +18,9 @@ services:
       - ACCESS_LOG=-
       - ERROR_LOG=-
       - REVERSE_PROXY=true
+      - SECRET_KEY=4i4MAzUM2ab7
+      - OAUTH_CLIENT_ID=1208
+      - OAUTH_CLIENT_SECRET=***REMOVED***
     volumes:
       - .data/CTFd/logs:/var/log/CTFd
       - .data/CTFd/uploads:/var/uploads
