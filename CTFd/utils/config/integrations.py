@@ -3,6 +3,7 @@ from CTFd.utils.config import is_setup
 
 
 def mlc():
+    print(get_app_config("OAUTH_PROVIDER"))
     if get_app_config("OAUTH_PROVIDER") != "mlc":
         return False
     if not is_setup():
@@ -11,6 +12,7 @@ def mlc():
 
 
 def ctftime():
+    print(get_app_config("OAUTH_PROVIDER"))
     if get_app_config("OAUTH_PROVIDER") != "ctftime":
         return False
     if not is_setup():
