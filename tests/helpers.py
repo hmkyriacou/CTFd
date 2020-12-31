@@ -4,11 +4,10 @@ import random
 import string
 import uuid
 from collections import namedtuple
+from unittest.mock import Mock, patch
 
 import requests
-import six
 from flask.testing import FlaskClient
-from mock import Mock, patch
 from sqlalchemy.engine.url import make_url
 from sqlalchemy_utils import drop_database
 from werkzeug.datastructures import Headers
@@ -18,30 +17,32 @@ from CTFd.cache import cache, clear_standings
 from CTFd.config import TestingConfig
 from CTFd.models import (
     Awards,
+    ChallengeComments,
     ChallengeFiles,
     Challenges,
+    Comments,
     Fails,
+    Fields,
     Files,
     Flags,
     Hints,
     Notifications,
+    PageComments,
     PageFiles,
     Pages,
     Solves,
     Tags,
+    TeamComments,
     Teams,
     Tokens,
     Tracking,
     Unlocks,
+    UserComments,
     Users,
 )
 
-if six.PY2:
-    text_type = unicode  # noqa: F821
-    binary_type = str
-else:
-    text_type = str
-    binary_type = bytes
+text_type = str
+binary_type = bytes
 
 
 FakeRequest = namedtuple("FakeRequest", ["form"])
@@ -149,9 +150,8 @@ def register_user(
             if raise_for_error:
                 with client.session_transaction() as sess:
                     assert sess["id"]
-                    assert sess["name"] == name
-                    assert sess["email"]
                     assert sess["nonce"]
+                    assert sess["hash"]
 
 
 def register_team(app, name="team", password="password", raise_for_error=True):
@@ -176,9 +176,8 @@ def login_as_user(app, name="user", password="password", raise_for_error=True):
             if raise_for_error:
                 with client.session_transaction() as sess:
                     assert sess["id"]
-                    assert sess["name"]
-                    assert sess["email"]
                     assert sess["nonce"]
+                    assert sess["hash"]
             return client
 
 
@@ -234,9 +233,8 @@ def login_with_mlc(
         if raise_for_error:
             with client.session_transaction() as sess:
                 assert sess["id"]
-                assert sess["name"]
-                assert sess["email"]
                 assert sess["nonce"]
+                assert sess["hash"]
         return client
 
 
@@ -441,6 +439,48 @@ def gen_token(db, type="user", user_id=None, expiration=None):
     db.session.add(token)
     db.session.commit()
     return token
+
+
+def gen_comment(db, content="comment", author_id=None, type="challenge", **kwargs):
+    if type == "challenge":
+        model = ChallengeComments
+    elif type == "user":
+        model = UserComments
+    elif type == "team":
+        model = TeamComments
+    elif type == "page":
+        model = PageComments
+    else:
+        model = Comments
+
+    comment = model(content=content, author_id=author_id, type=type, **kwargs)
+    db.session.add(comment)
+    db.session.commit()
+    return comment
+
+
+def gen_field(
+    db,
+    name="CustomField",
+    type="user",
+    field_type="text",
+    description="CustomFieldDescription",
+    required=True,
+    public=True,
+    editable=True,
+):
+    field = Fields(
+        name=name,
+        type=type,
+        field_type=field_type,
+        description=description,
+        required=required,
+        public=public,
+        editable=editable,
+    )
+    db.session.add(field)
+    db.session.commit()
+    return field
 
 
 def simulate_user_activity(db, user):

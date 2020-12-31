@@ -633,7 +633,9 @@ def test_api_team_patch_password():
     """Can a user change their team password /api/v1/teams/me if logged in as the captain"""
     app = create_ctfd(user_mode="teams")
     with app.app_context():
-        user1 = gen_user(app.db, name="user1", email="user1@ctfd.io")  # ID 2
+        user1 = gen_user(
+            app.db, name="user1", email="user1@ctfd.io", password="captain"
+        )  # ID 2
         user2 = gen_user(app.db, name="user2", email="user2@ctfd.io")  # ID 3
         team = gen_team(app.db)
         team.members.append(user1)
@@ -660,15 +662,132 @@ def test_api_team_patch_password():
                 is False
             )
 
-        with login_as_user(app, name="user1") as client:
+        with login_as_user(app, name="user1", password="captain") as client:
+            # Test that invalid passwords aren't accepted
+            r = client.patch(
+                "/api/v1/teams/me",
+                json={"confirm": "incorrect_password", "password": "new_password"},
+            )
+            assert r.status_code == 400
+            assert (
+                verify_password(plaintext="new_password", ciphertext=team.password)
+                is False
+            )
+
+            # Test that the team's password is accepted
             r = client.patch(
                 "/api/v1/teams/me",
                 json={"confirm": "password", "password": "new_password"},
             )
             assert r.status_code == 200
-
             team = Teams.query.filter_by(id=1).first()
             assert verify_password(plaintext="new_password", ciphertext=team.password)
+
+            # Test that the captain's password is also accepted
+            r = client.patch(
+                "/api/v1/teams/me",
+                json={"confirm": "captain", "password": "captain_password"},
+            )
+            assert r.status_code == 200
+            team = Teams.query.filter_by(id=1).first()
+            assert verify_password(
+                plaintext="captain_password", ciphertext=team.password
+            )
+
+
+def test_api_team_captain_disbanding():
+    """Test that only team captains can disband teams"""
+    app = create_ctfd(user_mode="teams")
+    with app.app_context():
+        user = gen_user(app.db, name="user")
+        team = gen_team(app.db)
+        team.members.append(user)
+        user.team_id = team.id
+        team.captain_id = 2
+        user2 = gen_user(app.db, name="user2", email="user2@ctfd.io")
+        team.members.append(user2)
+        app.db.session.commit()
+        with login_as_user(app, name="user2") as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            assert r.status_code == 403
+            assert r.get_json() == {
+                "success": False,
+                "errors": {"": ["Only team captains can disband their team"]},
+            }
+        with login_as_user(app) as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            assert r.status_code == 200
+            assert r.get_json() == {
+                "success": True,
+            }
+    destroy_ctfd(app)
+
+
+def test_api_team_disbanding_disabled():
+    """Test that team disbanding can be disabled"""
+    app = create_ctfd(user_mode="teams")
+    with app.app_context():
+        set_config("team_disbanding", "disabled")
+        team = gen_team(app.db)
+        captain = Users.query.filter_by(id=team.captain_id).first()
+        app.db.session.commit()
+        with login_as_user(app, name=captain.name) as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            assert r.status_code == 403
+            assert r.get_json() == {
+                "success": False,
+                "errors": {"": ["Team disbanding is currently disabled"]},
+            }
+        set_config("team_disbanding", "inactive_only")
+        with login_as_user(app, name=captain.name) as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            assert r.status_code == 200
+    destroy_ctfd(app)
+
+
+def test_api_team_captain_disbanding_only_inactive_teams():
+    """Test that only teams that haven't conducted any actions can be disbanded"""
+    app = create_ctfd(user_mode="teams")
+    with app.app_context():
+        user = gen_user(app.db, name="user")
+        team = gen_team(app.db)
+        team.members.append(user)
+        user.team_id = team.id
+        team.captain_id = 2
+        user2 = gen_user(app.db, name="user2", email="user2@ctfd.io")
+        team.members.append(user2)
+        app.db.session.commit()
+
+        gen_challenge(app.db)
+        gen_flag(app.db, 1)
+        gen_solve(app.db, user_id=3, team_id=1, challenge_id=1)
+
+        with login_as_user(app) as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            assert r.status_code == 403
+            assert r.get_json() == {
+                "success": False,
+                "errors": {
+                    "": [
+                        "You cannot disband your team as it has participated in the event. "
+                        "Please contact an admin to disband your team or remove a member."
+                    ]
+                },
+            }
+
+        user = gen_user(app.db, name="user3", email="user3@ctfd.io")
+        team = gen_team(app.db, name="team2", email="team2@ctfd.io")
+        print(user.id)
+        team.members.append(user)
+        user.team_id = team.id
+        team.captain_id = user.id
+        app.db.session.commit()
+        with login_as_user(app, name="user3") as client:
+            r = client.delete("/api/v1/teams/me", json="")
+            print(r.get_json())
+            assert r.status_code == 200
+            assert r.get_json() == {"success": True}
+    destroy_ctfd(app)
 
 
 def test_api_accessing_hidden_banned_users():
