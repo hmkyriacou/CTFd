@@ -215,7 +215,7 @@ class ServerConfig(object):
     OAUTH_CALLBACK_ENDPOINT: str = empty_str_cast(config_ini["oauth"]["OAUTH_CALLBACK_ENDPOINT"])
 
     if OAUTH_PROVIDER is None:
-        OAUTH_PROVIDER = "mlc"
+        OAUTH_PROVIDER = "ctftime"
 
     if OAUTH_CALLBACK_ENDPOINT is None:
         OAUTH_CALLBACK_ENDPOINT = ""
