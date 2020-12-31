@@ -1,4 +1,4 @@
-from CTFd.utils import get_config, get_app_config
+from CTFd.utils import get_app_config, get_config
 from CTFd.utils.config import is_setup
 
 
