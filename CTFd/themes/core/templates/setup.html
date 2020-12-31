@@ -207,7 +207,6 @@
 						</div>
 					</div>
 					<div class="tab-pane fade" id="integrations" role="tabpanel">
-                        {% if integrations.ctftime() %}
 						<div class="form-group">
 							<h4>CTFtime Integration</h4>
 						</div>
@@ -240,35 +239,17 @@
 		                </div>
 
                         <div class="form-group">
-			            <label>
-				            OAuth callback endpoint
-				            <small class="form-text text-muted">
-					            Basically, URL of your CTFd installation with "/redirect" as path
-				            </small>
-			            </label>
-			            <input class="form-control" id='oauth_callback_endpoint'
-                               name='oauth_callback_endpoint' type='text' placeholder=""
-				            {% if oauth_callback_endpoint is defined and oauth_callback_endpoint != None %}
-                                value="{{ oauth_callback_endpoint }}"{% endif %}>
+                            <label>
+                                OAuth callback endpoint
+                                <small class="form-text text-muted">
+                                    Basically, URL of your CTFd installation with "/redirect" as path
+                                </small>
+                            </label>
+                            <input class="form-control" id='oauth_callback_endpoint'
+                                   name='oauth_callback_endpoint' type='text' placeholder=""
+                                {% if oauth_callback_endpoint is defined and oauth_callback_endpoint != None %}
+                                    value="{{ oauth_callback_endpoint }}"{% endif %}>
 	                    </div>
-                        {% else %}
-						<div class="form-group">
-							<h4>MajorLeagueCyber Integration</h4>
-							<p>
-							MajorLeagueCyber (MLC) is a cyber security event tracker written and maintained by the developers of CTFd.
-							Set up MLC integration to:
-							<ul>
-								<li>display your event on the MLC website and mailing list</li>
-								<li>share and track participant statistics</li>
-								<li>provide live updates in team Slack or Discord groups</li>
-								<li>archive challenges, team participation &amp; more</li>
-							</ul>
-							</p>
-							<button type="button" id="integration-mlc" class="btn btn-primary btn-block">
-								Setup
-							</button>
-						</div>
-                        {% endif %}
 
 						<br>
 						<hr>
