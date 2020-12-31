@@ -152,7 +152,6 @@ def setup():
                 name=name, email=email, password=password, type="admin", hidden=True
             )
 
-
             # CTFtime Integration handled here
             if is_ctftime_mode():
                 oauth_client_id = request.form.get("oauth_client_id")
