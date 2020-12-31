@@ -20,7 +20,7 @@ services:
       - REVERSE_PROXY=true
       - SECRET_KEY=4i4MAzUM2ab7
       - OAUTH_CLIENT_ID=1208
-      - OAUTH_CLIENT_SECRET=***REMOVED***
+      - OAUTH_CLIENT_SECRET=1bcd18e4f77c71086bebe3866f88104a47947508a66e5ed70801c9373d414aae
     volumes:
       - .data/CTFd/logs:/var/log/CTFd
       - .data/CTFd/uploads:/var/uploads
