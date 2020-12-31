@@ -100,9 +100,9 @@ $(() => {
   });
 
   window.addEventListener("storage", function(event) {
-    if (event.key == "integrations" && event.newValue) {
+    if (event.key === "integrations" && event.newValue) {
       let integration = JSON.parse(event.newValue);
-      if (integration["name"] == "mlc") {
+      if (integration["name"] === "mlc" || integration["name"] === "ctftime") {
         $("#integration-mlc")
           .text("Already Configured")
           .attr("disabled", true);
