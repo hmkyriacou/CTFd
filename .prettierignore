@@ -9,3 +9,6 @@ CTFd/themes/**/vendor/
 *.mp3
 *.webm
 *.md
+.pytest_cache
+venv*
+.venv*

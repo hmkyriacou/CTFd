@@ -1,14 +1,12 @@
 from CTFd.utils import get_app_config, get_config
 from CTFd.utils.config import is_setup
 
-
 def mlc():
-    print(get_app_config("OAUTH_PROVIDER"))
-    if get_app_config("OAUTH_PROVIDER") != "mlc":
-        return False
-    if not is_setup():
-        return True
-    return get_config("oauth_client_id") and get_config("oauth_client_secret")
+    admin_config = get_config("oauth_client_id") and get_config("oauth_client_secret")
+    main_config = get_app_config("OAUTH_CLIENT_ID") and get_app_config(
+        "OAUTH_CLIENT_SECRET"
+    )
+    return admin_config or main_config
 
 
 def ctftime():
