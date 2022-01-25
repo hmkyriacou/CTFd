@@ -7,6 +7,9 @@ events {
 
 http {
 
+  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
+  limit_conn_zone $binary_remote_addr zone=addr:10m;
+
   # Configuration containing list of application servers
   upstream app_servers {
 
@@ -18,6 +21,11 @@ http {
     listen 80;
 
     client_max_body_size 4G;
+
+    limit_req zone=mylimit burst=15;
+    limit_conn addr 10;
+    limit_req_status 429;
+
 
     # Handle Server Sent Events for Notifications
     location /events {

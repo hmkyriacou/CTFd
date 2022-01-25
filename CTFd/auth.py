@@ -417,6 +417,7 @@ def oauth_login():
     )
     if callback_url:
         redirect_url += "&redirect_uri={callback_url}".format(callback_url=callback_url)
+    print(redirect_url)
     return redirect(redirect_url)
 
 

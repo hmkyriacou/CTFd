@@ -80,3 +80,4 @@ node_modules/
 flask_profiler.sql
 
 secrets.txt
+venv/
