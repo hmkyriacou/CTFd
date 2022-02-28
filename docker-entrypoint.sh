@@ -25,9 +25,9 @@ python ping.py
 python manage.py db upgrade
 
 # Start CTFd
-echo "Starting CTFd"
+echo "Starting CTFd on port $PORT\nWith $WORKERS workers"
 exec gunicorn 'CTFd:create_app()' \
-    --bind '0.0.0.0:8000' \
+    --bind "0.0.0.0:$PORT" \
     --workers $WORKERS \
     --worker-tmp-dir "$WORKER_TEMP_DIR" \
     --worker-class "$WORKER_CLASS" \
