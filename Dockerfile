@@ -36,7 +36,7 @@ RUN chmod +x /opt/CTFd/docker-entrypoint.sh \
     && chown -R 1001:1001 /opt/CTFd /var/log/CTFd /var/uploads
 
 # Set Enviorment Variables
-#ENV SECRET_KEY=a4J6WWq0kRxY
+ENV SECRET_KEY=a4J6WWq0kRxY
 ENV OAUTH_PROVIDER=ctftime
 ENV OAUTH_CALLBACK_ENDPOINT=http://ctf.wpictf.xyz/redirect
 ENV UPLOAD_FOLDER=/var/uploads
