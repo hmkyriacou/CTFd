@@ -18,6 +18,7 @@ from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
 from CTFd.utils import get_config
 from CTFd.utils.decorators import admins_only, authed_only, require_team
+from CTFd.utils.decorators.modes import require_team_mode
 from CTFd.utils.decorators.visibility import (
     check_account_visibility,
     check_score_visibility,
@@ -50,6 +51,8 @@ teams_namespace.schema_model(
 
 @teams_namespace.route("")
 class TeamList(Resource):
+    method_decorators = [require_team_mode]
+
     @check_account_visibility
     @teams_namespace.doc(
         description="Endpoint to get Team objects in bulk",
@@ -159,6 +162,8 @@ class TeamList(Resource):
 @teams_namespace.route("/<int:team_id>")
 @teams_namespace.param("team_id", "Team ID")
 class TeamPublic(Resource):
+    method_decorators = [require_team_mode]
+
     @check_account_visibility
     @teams_namespace.doc(
         description="Endpoint to get a specific Team object",
@@ -247,6 +252,8 @@ class TeamPublic(Resource):
 @teams_namespace.route("/me")
 @teams_namespace.param("team_id", "Current Team")
 class TeamPrivate(Resource):
+    method_decorators = [require_team_mode]
+
     @authed_only
     @require_team
     @teams_namespace.doc(
@@ -376,6 +383,8 @@ class TeamPrivate(Resource):
 
 @teams_namespace.route("/me/members")
 class TeamPrivateMembers(Resource):
+    method_decorators = [require_team_mode]
+
     @authed_only
     @require_team
     def post(self):
@@ -397,6 +406,8 @@ class TeamPrivateMembers(Resource):
 @teams_namespace.route("/<team_id>/members")
 @teams_namespace.param("team_id", "Team ID")
 class TeamMembers(Resource):
+    method_decorators = [require_team_mode]
+
     @admins_only
     def get(self, team_id):
         team = Teams.query.filter_by(id=team_id).first_or_404()
@@ -485,6 +496,8 @@ class TeamMembers(Resource):
 
 @teams_namespace.route("/me/solves")
 class TeamPrivateSolves(Resource):
+    method_decorators = [require_team_mode]
+
     @authed_only
     @require_team
     def get(self):
@@ -498,11 +511,14 @@ class TeamPrivateSolves(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        return {"success": True, "data": response.data}
+        count = len(response.data)
+        return {"success": True, "data": response.data, "meta": {"count": count}}
 
 
 @teams_namespace.route("/me/fails")
 class TeamPrivateFails(Resource):
+    method_decorators = [require_team_mode]
+
     @authed_only
     @require_team
     def get(self):
@@ -511,23 +527,28 @@ class TeamPrivateFails(Resource):
 
         view = "admin" if is_admin() else "user"
 
-        schema = SubmissionSchema(view=view, many=True)
-        response = schema.dump(fails)
-
-        if response.errors:
-            return {"success": False, "errors": response.errors}, 400
-
+        # We want to return the count purely for stats & graphs
+        # but this data isn't really needed by the end user.
+        # Only actually show fail data for admins.
         if is_admin():
+            schema = SubmissionSchema(view=view, many=True)
+            response = schema.dump(fails)
+
+            if response.errors:
+                return {"success": False, "errors": response.errors}, 400
+
             data = response.data
         else:
             data = []
-        count = len(response.data)
+        count = len(fails)
 
         return {"success": True, "data": data, "meta": {"count": count}}
 
 
 @teams_namespace.route("/me/awards")
 class TeamPrivateAwards(Resource):
+    method_decorators = [require_team_mode]
+
     @authed_only
     @require_team
     def get(self):
@@ -540,12 +561,15 @@ class TeamPrivateAwards(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        return {"success": True, "data": response.data}
+        count = len(response.data)
+        return {"success": True, "data": response.data, "meta": {"count": count}}
 
 
 @teams_namespace.route("/<team_id>/solves")
 @teams_namespace.param("team_id", "Team ID")
 class TeamPublicSolves(Resource):
+    method_decorators = [require_team_mode]
+
     @check_account_visibility
     @check_score_visibility
     def get(self, team_id):
@@ -562,12 +586,15 @@ class TeamPublicSolves(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        return {"success": True, "data": response.data}
+        count = len(response.data)
+        return {"success": True, "data": response.data, "meta": {"count": count}}
 
 
 @teams_namespace.route("/<team_id>/fails")
 @teams_namespace.param("team_id", "Team ID")
 class TeamPublicFails(Resource):
+    method_decorators = [require_team_mode]
+
     @check_account_visibility
     @check_score_visibility
     def get(self, team_id):
@@ -579,17 +606,20 @@ class TeamPublicFails(Resource):
 
         view = "admin" if is_admin() else "user"
 
-        schema = SubmissionSchema(view=view, many=True)
-        response = schema.dump(fails)
-
-        if response.errors:
-            return {"success": False, "errors": response.errors}, 400
-
+        # We want to return the count purely for stats & graphs
+        # but this data isn't really needed by the end user.
+        # Only actually show fail data for admins.
         if is_admin():
+            schema = SubmissionSchema(view=view, many=True)
+            response = schema.dump(fails)
+
+            if response.errors:
+                return {"success": False, "errors": response.errors}, 400
+
             data = response.data
         else:
             data = []
-        count = len(response.data)
+        count = len(fails)
 
         return {"success": True, "data": data, "meta": {"count": count}}
 
@@ -597,6 +627,8 @@ class TeamPublicFails(Resource):
 @teams_namespace.route("/<team_id>/awards")
 @teams_namespace.param("team_id", "Team ID")
 class TeamPublicAwards(Resource):
+    method_decorators = [require_team_mode]
+
     @check_account_visibility
     @check_score_visibility
     def get(self, team_id):
@@ -612,4 +644,5 @@ class TeamPublicAwards(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
-        return {"success": True, "data": response.data}
+        count = len(response.data)
+        return {"success": True, "data": response.data, "meta": {"count": count}}
